@@ -13,11 +13,13 @@ All other live cells die in the next generation. Similarly, all other dead cells
 # command line options
 # DONE run n iterations
 # DONE add history to go forward/back generations
-# try cacheing all neighbors for each cell to speed up update()ing
+# DONE try cacheing all neighbors for each cell to speed up update()ing
 
 import os
 import time
 import random
+import timeit
+
 
 class Life():
     def __init__(self, height=20, width=24):
@@ -43,9 +45,9 @@ class Life():
             self.history = self.history[:self.history_index+1]
         self.history.append(self.cells)
         self.history_index += 1
-    
+
     def lives(self, cell, index):
-        """ Returns True if cell is living or False if cell is dead based on living neighbors """
+        "Returns True if cell is living or False if cell is dead based on living neighbors"
         living_neighbors = 0
         for n in self.neighbors[index]:
             if self.cells[n] == '*':
@@ -80,13 +82,13 @@ class Life():
         return alive, dead
 
     def get_past_state(self, n=1):
-        """ Returns nth state back from current if exists, else None """
+        "Returns nth state back from current if exists, else None"
         if self.history_index - n < 0:
             return None
         return self.history[self.history_index-n]
 
     def rewind_state(self, amount=1):
-        """ Sets cells to previous state. Returns True on success, False if no history """
+        "Sets cells to previous state. Returns True on success, False if no history"
         if self.history_index - amount < 0:
             return False
         self.history_index -= amount
@@ -94,7 +96,7 @@ class Life():
         return True
 
     def foward_state(self, amount=1):
-        """ Sets cells to next state. Returns True on success, False if no next state """
+        "Sets cells to next state. Returns True on success, False if no next state"
         if self.history_index + amount >= len(self.history):
             return False
         self.history_index += amount
@@ -202,10 +204,8 @@ class Life():
     def auto_finish(self, perc=0.5):
         # run the game without any ui until a loop is found
         self.randomize(perc)
+        print("Running out the game...")
         while (not self.is_looping()):
-            os.system('cls')
-            print()
-            print("Running out the game. Gen " + str(self.history_index+1))
             self.update()
         self.REPL_print_grid()
         # start a REPL to view game states
@@ -214,6 +214,7 @@ class Life():
     def auto_n_generations(self, n=500, perc=0.5):
         # run the game without any ui until a loop is found or n gens pass
         self.randomize(perc)
+        print("Running out the game...")
         while (n > 1 and not self.is_looping()):
             #n -= 1
             #os.system('cls')
@@ -224,67 +225,28 @@ class Life():
         # start a REPL to view game states
         self.REPL()
 
+    def sim(self, perc, max):
+        "Gives metrics"
+        start = timeit.default_timer()
+        self.randomize(perc)
+        while (self.history_index < max and not self.is_looping()):
+            self.update()
+        elapsed = timeit.default_timer() - start
+        self.print_all()
+        print("time:       {}s".format(elapsed))
+        print("perc:       {}".format(perc))
+        print("gens:       {}\n".format(self.history_index+1))
+
+
 def main():
     #runtests()
     #Life(55,80).auto_detect_loop(80, .1) # large, good for ogling
     #Life(5,5).auto_detect_loop(60, .1)  # small, good for testing
     #Life(55,80).auto_finish(50)
-    Life(60,60).auto_n_generations(5000, 50)
+    #Life(60,60).auto_n_generations(5000, 40)
+    for x in range(1, 101):
+        Life(60,60).sim(x, 5000)
+
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#   def test_check_neighbors(l, verbose=True):
-#   if verbose: 
-#       print(l.check_neighbors(1))
-#   assert l.check_neighbors(1) == set([70,71,72,0,2,10,11,12]) # top row
-#   if verbose: 
-#       print(l.check_neighbors(0))
-#   assert l.check_neighbors(0) == set([79,70,71,9,1,19,10,11]) # corner top left
-#   if verbose: 
-#       print(l.check_neighbors(2))
-#   assert l.check_neighbors(2) == set([71,72,73,1,3,11,12,13]) # top row
-#   if verbose: 
-#       print(l.check_neighbors(9))
-#   assert l.check_neighbors(9) == set([78,79,70,8,0,18,19,10]) # corner top right
-#   if verbose: 
-#       print(l.check_neighbors(70))
-#   assert l.check_neighbors(70) == set([69,60,61,79,71,9,0,1]) # corner bot left
-#   if verbose: 
-#       print(l.check_neighbors(55))
-#   assert l.check_neighbors(55) == set([44,45,46,54,56,64,65,66]) # center
-#   if verbose: 
-#       print(l.check_neighbors(79))
-#   assert l.check_neighbors(79) == set([68,69,60,78,70,8,9,0]) #corner bot right
-#   if verbose: 
-#       print(l.check_neighbors(72))
-#   assert l.check_neighbors(72) == set([61,62,63,71,73,1,2,3]) # bot row
-#   if verbose: 
-#       print(l.check_neighbors(10))
-#   assert l.check_neighbors(10) == set([9,0,1,19,11,29,20,21]) # left col
-#   if verbose: 
-#       print(l.check_neighbors(59))
-#   assert l.check_neighbors(59) == set([48,49,40,58,50,68,69,60]) # right col
-#   print("All tests passed")
-
-# def runtests():
-#   my_life = Life(8,10)
-#   try:
-#       test_check_neighbors(my_life, False)
-#   except:
-#       test_check_neighbors(my_life)
