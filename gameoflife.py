@@ -14,6 +14,7 @@ All other live cells die in the next generation. Similarly, all other dead cells
 # DONE run n iterations
 # DONE add history to go forward/back generations
 # DONE try cacheing all neighbors for each cell to speed up update()ing
+# store history as generators and only have self.cells as list
 
 import os
 import time
@@ -181,6 +182,7 @@ class Life():
         print("\nGeneration: " + str(self.history_index+1))
 
     def REPL(self):
+        prev = ""
         response = ""
         while not response.startswith("q"):
             response = input("[b]ack, [f]orward, [s]tart, [e]nd, [q]uit >> ").lower().strip()
@@ -193,11 +195,13 @@ class Life():
             except:
                 pass
             if response.startswith('b'):
+                prev = response
                 if self.rewind_state():
                     self.REPL_print_grid()
                 else:
                     print("Already at first generation")
             elif response.startswith('f'):
+                prev = response
                 if self.foward_state():
                     self.REPL_print_grid()
                 else:
@@ -213,8 +217,19 @@ class Life():
             elif response.startswith('a'): # run it back! [a]gain!
                 main()
                 return
+            else: # uses previous command if f or b
+                if prev.startswith('b'):
+                    if self.rewind_state():
+                        self.REPL_print_grid()
+                    else:
+                        print("Already at first generation")
+                elif prev.startswith('f'):
+                    if self.foward_state():
+                        self.REPL_print_grid()
+                    else:
+                        print("Already at final generation")
 
-    def auto_detect_loop(self, perc=0.5, timestep=.5):
+    def auto_detect_loop(self, perc=50, timestep=.5):
         # run the game
         self.randomize(perc)
         while (not self.is_looping()):
@@ -225,7 +240,7 @@ class Life():
         # start a REPL to view game states
         self.REPL()
 
-    def auto_finish(self, perc=0.5):
+    def auto_finish(self, perc=50):
         # run the game without any ui until a loop is found
         self.randomize(perc)
         print("Running out the game...")
@@ -235,7 +250,7 @@ class Life():
         # start a REPL to view game states
         self.REPL()
 
-    def auto_n_generations(self, n=500, perc=0.5):
+    def auto_n_generations(self, n=500, perc=50):
         # run the game without any ui until a loop is found or n gens pass
         self.randomize(perc)
         print("Running out the game...")
