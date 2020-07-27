@@ -29,7 +29,7 @@ class Life():
         self.history = []
         self.history_index = -1
         self.neighbors = []
-        self.setup_neighbors()
+        self.cache_neighbors()
 
     def sizeof_neighbors(self):
         count = 0
@@ -55,7 +55,7 @@ class Life():
         return (cell == '*' and (living_neighbors == 2 or living_neighbors == 3) or
                 cell == ' ' and living_neighbors == 3)
 
-    def setup_neighbors(self):
+    def cache_neighbors(self):
         for index in range(len(self.cells)):
             self.neighbors.append([])
             for x in range(-1, 2):
@@ -103,6 +103,15 @@ class Life():
         self.cells = self.history[self.history_index]
         return True
 
+    def set_state(self, n):
+        "Sets cells to generation n and returns True on success, False on n OoB"
+        n -= 1
+        if n < 0 or n >= len(self.history):
+            return False
+        self.history_index = n
+        self.cells = self.history[self.history_index]
+        return True
+
     def rewind_to_first(self):
         self.history_index = 0
         self.cells = self.history[self.history_index]
@@ -137,6 +146,13 @@ class Life():
         all += "len(cache): {}".format(self.sizeof_neighbors())
         print(all)
 
+    def print_all_oneline(self):
+        all =  "height:     {} ".format(self.height)
+        all += "width:      {} ".format(self.width)
+        all += "len(cells): {} ".format(len(self.cells))
+        all += "len(cache): {}".format(self.sizeof_neighbors())
+        print(all)
+
     def start(self):
         self.randomize(50)
         response = ""
@@ -167,26 +183,34 @@ class Life():
     def REPL(self):
         response = ""
         while not response.startswith("q"):
-            response = input("[b]ack, [f]orward, [s]tart, [e]nd, [q]uit >> ").lower()
+            response = input("[b]ack, [f]orward, [s]tart, [e]nd, [q]uit >> ").lower().strip()
+            try:
+                index = int(response)
+                if self.set_state(index):
+                    self.REPL_print_grid()
+                else:
+                    print("There is no generation " + response)
+            except:
+                pass
             if response.startswith('b'):
                 if self.rewind_state():
                     self.REPL_print_grid()
                 else:
                     print("Already at first generation")
-            if response.startswith('f'):
+            elif response.startswith('f'):
                 if self.foward_state():
                     self.REPL_print_grid()
                 else:
                     print("Already at final generation")
-            if response.startswith('s'):
+            elif response.startswith('s'):
                 self.rewind_to_first()
                 self.REPL_print_grid()
-            if response.startswith('e'):
+            elif response.startswith('e'):
                 self.forward_to_last()
                 self.REPL_print_grid()
-            if response.startswith('p'): # print info
+            elif response.startswith('p'): # print info
                 self.print_all()
-            if response.startswith('a'): # run it back! [a]gain!
+            elif response.startswith('a'): # run it back! [a]gain!
                 main()
                 return
 
@@ -237,15 +261,28 @@ class Life():
         print("perc:       {}".format(perc))
         print("gens:       {}\n".format(self.history_index+1))
 
+    def sim_oneline(self, perc, max):
+        "Gives metrics on one line"
+        start = timeit.default_timer()
+        self.randomize(perc)
+        while (self.history_index < max and not self.is_looping()):
+            self.update()
+        elapsed = timeit.default_timer() - start
+        print("time:       {}s ".format(elapsed), end='')
+        print("perc:       {} ".format(perc), end='')
+        print("gens:       {} ".format(self.history_index+1), end='')
+        self.print_all_oneline()
+        print()
+
 
 def main():
     #runtests()
     #Life(55,80).auto_detect_loop(80, .1) # large, good for ogling
     #Life(5,5).auto_detect_loop(60, .1)  # small, good for testing
     #Life(55,80).auto_finish(50)
-    #Life(60,60).auto_n_generations(5000, 40)
-    for x in range(1, 101):
-        Life(60,60).sim(x, 5000)
+    Life(60,60).auto_n_generations(5000, 40)
+    #for x in range(1, 101):
+    #    Life(60,60).sim_oneline(x, 5000)
 
 
 if __name__ == "__main__":
