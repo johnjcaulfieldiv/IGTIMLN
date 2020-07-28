@@ -9,12 +9,11 @@ All other live cells die in the next generation. Similarly, all other dead cells
 """
 
 # TODO
-# save/load using file
+# DONE, but could be better - save/load using file
 # command line options
 # DONE run n iterations
 # DONE add history to go forward/back generations
 # DONE try cacheing all neighbors for each cell to speed up update()ing
-# store history as generators and only have self.cells as list
 
 import os
 import time
@@ -31,12 +30,49 @@ class Life():
         self.history_index = -1
         self.neighbors = []
         self.cache_neighbors()
+        self.filename = self.get_filename()
+
+    def get_filename(self):
+        filebase = os.path.join(os.getcwd(), "saves", "life_")
+        prevnum = 0
+        for _, __, filenames in os.walk(os.path.join(os.getcwd(), "saves")):
+            for f in filenames:
+                try:
+                    savenum = int(f.split("_")[-1])
+                    prevnum = max(prevnum, savenum)
+                except:
+                    continue
+        return filebase + str(prevnum+1)
+
+    def write_to_disc(self):
+        with open(self.filename, 'w+') as outf:
+            outf.write(str(self.height) + "\n")
+            outf.write(str(self.width) + "\n")
+            outf.writelines(list(self.history[0]))
+
+    def load_from_disc(self, filename):
+        fname = os.path.join(os.getcwd(), "saves", filename)
+        with open(fname, 'r') as inf:
+            self.height = int(inf.readline().split()[0])
+            self.width = int(inf.readline().split()[0])
+            self.cells = []
+            for line in inf:
+                for ch in line:
+                    if ch != "\n":
+                        self.cells.append(ch)
+        self.history = []
+        self.history.append((cell for cell in self.cells))
+        self.history_index = 0
+        self.neighbors = []
+        self.cache_neighbors()
+        self.filename = self.get_filename()
 
     def sizeof_neighbors(self):
         count = 0
         for group in self.neighbors:
-            for item in group:
+            for _ in group:
                 count += 1
+        assert count == self.width * self.height * 8
         return count
 
     def update(self):
@@ -192,6 +228,7 @@ class Life():
                     self.REPL_print_grid()
                 else:
                     print("There is no generation " + response)
+                continue
             except:
                 pass
             if response.startswith('b'):
@@ -214,6 +251,14 @@ class Life():
                 self.REPL_print_grid()
             elif response.startswith('p'): # print info
                 self.print_all()
+            elif response.startswith('d'): # disc
+                self.write_to_disc()
+            elif response.startswith('l'): # load
+                try:
+                    self.load_from_disc(response.split()[-1])
+                    self.REPL_print_grid()
+                except:
+                    print("Failed to load {}".format(response.split()[-1]))
             elif response.startswith('a'): # run it back! [a]gain!
                 main()
                 return
@@ -295,9 +340,9 @@ def main():
     #Life(55,80).auto_detect_loop(80, .1) # large, good for ogling
     #Life(5,5).auto_detect_loop(60, .1)  # small, good for testing
     #Life(55,80).auto_finish(50)
-    Life(60,60).auto_n_generations(5000, 40)
-    #for x in range(1, 101):
-    #    Life(60,60).sim_oneline(x, 5000)
+    #Life(30,40).auto_n_generations(6000, 40)
+    for x in range(1, 101):
+        Life(60,60).sim_oneline(x, 5000)
 
 
 if __name__ == "__main__":
