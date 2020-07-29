@@ -62,6 +62,7 @@ class Life():
                         self.cells.append(ch)
         self.history = []
         self.history.append((cell for cell in self.cells))
+        assert len(self.history[0]) == len(self.cells) and len(self.cells) == self.height * self.width
         self.history_index = 0
         self.neighbors = []
         self.cache_neighbors()
@@ -217,7 +218,7 @@ class Life():
         self.print_grid()
         print("\nGeneration: " + str(self.history_index+1))
 
-    def REPL(self):
+    def REPL(self, n_gens=5000, perc=50):
         prev = ""
         response = ""
         while not response.startswith("q"):
@@ -256,7 +257,8 @@ class Life():
             elif response.startswith('l'): # load
                 try:
                     self.load_from_disc(response.split()[-1])
-                    self.REPL_print_grid()
+                    self.loaded_auto_n_generations(n_gens)
+                    return
                 except:
                     print("Failed to load {}".format(response.split()[-1]))
             elif response.startswith('a'): # run it back! [a]gain!
@@ -274,6 +276,16 @@ class Life():
                     else:
                         print("Already at final generation")
 
+    def loaded_auto_n_generations(self, n=500):
+        # run loaded game
+        print("Running out the game...")
+        while (n > 1 and not self.is_looping()):
+            n -= 1
+            self.update()
+        self.REPL_print_grid()
+        # start a REPL to view game states
+        self.REPL(n)
+
     def auto_detect_loop(self, perc=50, timestep=.5):
         # run the game
         self.randomize(perc)
@@ -283,7 +295,7 @@ class Life():
             time.sleep(timestep)
         print("Current state is in infinite loop. Terminated.")
         # start a REPL to view game states
-        self.REPL()
+        self.REPL(perc=perc)
 
     def auto_finish(self, perc=50):
         # run the game without any ui until a loop is found
@@ -293,21 +305,21 @@ class Life():
             self.update()
         self.REPL_print_grid()
         # start a REPL to view game states
-        self.REPL()
+        self.REPL(perc=perc)
 
     def auto_n_generations(self, n=500, perc=50):
         # run the game without any ui until a loop is found or n gens pass
         self.randomize(perc)
         print("Running out the game...")
         while (n > 1 and not self.is_looping()):
-            #n -= 1
+            n -= 1
             #os.system('cls')
             #print()
             #print("Running out the game. Gen " + str(self.history_index+1))
             self.update()
         self.REPL_print_grid()
         # start a REPL to view game states
-        self.REPL()
+        self.REPL(n, perc)
 
     def sim(self, perc, max):
         "Gives metrics"
@@ -339,10 +351,10 @@ def main():
     #runtests()
     #Life(55,80).auto_detect_loop(80, .1) # large, good for ogling
     #Life(5,5).auto_detect_loop(60, .1)  # small, good for testing
-    #Life(55,80).auto_finish(50)
+    Life(50,80).auto_finish(50)
     #Life(30,40).auto_n_generations(6000, 40)
-    for x in range(1, 101):
-        Life(60,60).sim_oneline(x, 5000)
+    #for x in range(1, 101):
+    #    Life(60,60).sim_oneline(x, 5000)
 
 
 if __name__ == "__main__":
