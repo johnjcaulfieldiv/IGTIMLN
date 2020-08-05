@@ -10,15 +10,20 @@ All other live cells die in the next generation. Similarly, all other dead cells
 
 # TODO
 # DONE, but could be better - save/load using file
+#     DONE use some basic compression to decrease save file size
+#         DISCARDED (naive compression was longer than writing the actual list out)
 # command line options
 # DONE run n iterations
 # DONE add history to go forward/back generations
 # DONE try cacheing all neighbors for each cell to speed up update()ing
+# DONE add GUI for better visualization
 
 import os
 import time
 import random
 import timeit
+import _thread
+import pygame
 
 
 class Life():
@@ -31,17 +36,45 @@ class Life():
         self.neighbors = []
         self.cache_neighbors()
         self.filename = self.get_filename()
+        self.HEIGHT = 900
+        self.WIDTH  = 900
+        self.GHEIGHT = 50
+        self.GWIDTH  = 80
+        self.start_GUI_thread()
+
+    def start_GUI_thread(self):
+        _thread.start_new_thread(self.GUI, ())
+
+    def GUI(self):
+        pygame.init()
+        screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
+        pygame.display.set_caption("I Guess This Is My Life Now")
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: running = False
+            if not self.cells: continue
+            for i, c in enumerate(self.cells):
+                color = (255,255,255) if c == '*' else (0,0,0)
+                row = i // self.width
+                col = i % self.width
+                x = col * self.WIDTH // self.width
+                y = row * self.HEIGHT // self.height
+                pygame.draw.rect(screen, color, pygame.Rect(x, y, self.WIDTH // self.width, self.HEIGHT // self.height), 0)
+            pygame.display.update()
+            pygame.time.wait(10)
+
 
     def get_filename(self):
         filebase = os.path.join(os.getcwd(), "saves", "life_")
         prevnum = 0
-        for _, __, filenames in os.walk(os.path.join(os.getcwd(), "saves")):
-            for f in filenames:
-                try:
-                    savenum = int(f.split("_")[-1])
-                    prevnum = max(prevnum, savenum)
-                except:
-                    continue
+        (_, _, filenames) = next(os.walk(os.path.join(os.getcwd(), "saves")))
+        for f in filenames:
+            try:
+                savenum = int(f.split("_")[-1])
+                prevnum = max(prevnum, savenum)
+            except:
+                continue
         return filebase + str(prevnum+1)
 
     def write_to_disc(self):
@@ -60,9 +93,13 @@ class Life():
                 for ch in line:
                     if ch != "\n":
                         self.cells.append(ch)
+        try:
+            assert len([cell for cell in self.cells]) == len(self.cells) and len(self.cells) == self.height * self.width
+        except:
+            self.cells = self.history[self.history_index]
+            raise Exception("Invalid data in file")
         self.history = []
-        self.history.append((cell for cell in self.cells))
-        assert len(self.history[0]) == len(self.cells) and len(self.cells) == self.height * self.width
+        self.history.append([cell for cell in self.cells])
         self.history_index = 0
         self.neighbors = []
         self.cache_neighbors()
@@ -142,7 +179,7 @@ class Life():
         return True
 
     def set_state(self, n):
-        "Sets cells to generation n and returns True on success, False on n OoB"
+        "Sets cells to generation n and returns True on success, False on OoB"
         n -= 1
         if n < 0 or n >= len(self.history):
             return False
@@ -168,7 +205,7 @@ class Life():
     def print_grid(self):
         "Print the current state to console"
         grid = ""
-        for cell in [c + "\n" if (i+1) % self.width == 0 else c + " " for i, c in enumerate(self.cells)]:
+        for cell in (c + "\n" if (i+1) % self.width == 0 else c + " " for i, c in enumerate(self.cells)):
             grid += cell
         print(grid)
 
@@ -203,7 +240,7 @@ class Life():
     def auto(self, timestep=.5):
         generation = 1
         self.randomize(70)
-        while (True):
+        while (not self.is_looping()):
             os.system('cls')
             print()
             self.print_grid()
@@ -259,11 +296,18 @@ class Life():
                     self.load_from_disc(response.split()[-1])
                     self.loaded_auto_n_generations(n_gens)
                     return
-                except:
+                except Exception as e:
+                    print(e)
                     print("Failed to load {}".format(response.split()[-1]))
             elif response.startswith('a'): # run it back! [a]gain!
-                main()
+                self.auto_n_generations(n_gens, perc=perc)
                 return
+            elif response.startswith('r'): # sim in real time
+                try:
+                    ts = float(response.split()[1])
+                except:
+                    ts = 0.0001
+                self.auto(ts)
             else: # uses previous command if f or b
                 if prev.startswith('b'):
                     if self.rewind_state():
@@ -286,16 +330,16 @@ class Life():
         # start a REPL to view game states
         self.REPL(n)
 
-    def auto_detect_loop(self, perc=50, timestep=.5):
+    def auto_detect_loop(self, p=50, timestep=.5):
         # run the game
-        self.randomize(perc)
+        self.randomize(p)
         while (not self.is_looping()):
             self.REPL_print_grid()
             self.update()
             time.sleep(timestep)
         print("Current state is in infinite loop. Terminated.")
         # start a REPL to view game states
-        self.REPL(perc=perc)
+        self.REPL(perc=p)
 
     def auto_finish(self, perc=50):
         # run the game without any ui until a loop is found
@@ -317,7 +361,7 @@ class Life():
             #print()
             #print("Running out the game. Gen " + str(self.history_index+1))
             self.update()
-        self.REPL_print_grid()
+        #self.REPL_print_grid()
         # start a REPL to view game states
         self.REPL(n, perc)
 
@@ -349,12 +393,13 @@ class Life():
 
 def main():
     #runtests()
-    #Life(55,80).auto_detect_loop(80, .1) # large, good for ogling
+    #Life(50,80).auto_detect_loop(50, .000) # large, good for ogling
     #Life(5,5).auto_detect_loop(60, .1)  # small, good for testing
-    Life(50,80).auto_finish(50)
-    #Life(30,40).auto_n_generations(6000, 40)
+    #Life(50,80).auto_finish(50)
+    #Life(50,80).auto_n_generations(6000, 40)
     #for x in range(1, 101):
     #    Life(60,60).sim_oneline(x, 5000)
+    Life(150,150).REPL(n_gens=6000, perc=60)
 
 
 if __name__ == "__main__":
